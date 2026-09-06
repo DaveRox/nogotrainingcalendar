@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TAO Accumulation Dashboard v3</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117; --surface: #161b22; --surface2: #21262d; --border: #30363d;
+      --text: #e6edf3; --muted: #8b949e;
+      --green: #3fb950; --green-bg: rgba(63,185,80,0.1);
+      --red: #f85149; --red-bg: rgba(248,81,73,0.1);
+      --yellow: #d29922; --yellow-bg: rgba(210,153,34,0.1);
+      --blue: #58a6ff; --blue-bg: rgba(88,166,255,0.1);
+      --purple: #bc8cff; --purple-bg: rgba(188,140,255,0.1);
+      --tao: #6ee7b7; --tao-bg: rgba(110,231,183,0.1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; }
+
+    .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header-logo { width: 36px; height: 36px; background: linear-gradient(135deg, #6ee7b7, #3b82f6); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: #000; }
+    .header h1 { font-size: 18px; font-weight: 600; }
+    .header-subtitle { color: var(--muted); font-size: 12px; }
+    .price-badge { background: var(--tao-bg); border: 1px solid var(--tao); color: var(--tao); padding: 6px 14px; border-radius: 20px; font-weight: 600; font-size: 16px; }
+    .container { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+
+    /* KPI CARDS */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .kpi-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .kpi-value { font-size: 24px; font-weight: 700; line-height: 1; }
+    .kpi-sub { color: var(--muted); font-size: 11px; margin-top: 4px; }
+    .kpi-green .kpi-value { color: var(--green); }
+    .kpi-yellow .kpi-value { color: var(--yellow); }
+    .kpi-blue .kpi-value { color: var(--blue); }
+    .kpi-tao .kpi-value { color: var(--tao); }
+    .kpi-red .kpi-value { color: var(--red); }
+
+    /* PROGRESS BAR */
+    .progress-section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; }
+    .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .progress-header h2 { font-size: 14px; font-weight: 600; }
+    .progress-pct { color: var(--tao); font-weight: 700; font-size: 16px; }
+    .progress-bar-outer { height: 14px; background: var(--surface2); border-radius: 7px; overflow: hidden; }
+    .progress-bar-inner { height: 100%; border-radius: 7px; background: linear-gradient(90deg, #3b82f6, #6ee7b7); transition: width .6s ease; }
+    .progress-ticks { display: flex; justify-content: space-between; margin-top: 6px; }
+    .progress-ticks span { font-size: 10px; color: var(--muted); }
+
+    /* LAYOUT */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+    .panel h2 { font-size: 14px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .panel h2 .badge { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 400; }
+
+    /* PRICE CONTROL */
+    .price-control { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+    .price-control label { color: var(--muted); font-size: 12px; }
+    .price-input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 6px; font-size: 14px; width: 110px; }
+    .price-input:focus { outline: none; border-color: var(--blue); }
+    .btn-preset { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all .15s; }
+    .btn-preset:hover { border-color: var(--tao); color: var(--tao); }
+
+    /* TABLE */
+    table { width: 100%; border-collapse: collapse; }
+    th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; padding: 0 10px 8px 0; text-align: left; font-weight: 500; }
+    td { padding: 7px 10px 7px 0; border-top: 1px solid var(--border); font-size: 13px; }
+    .tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+    .tag-active { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow); }
+    .tag-filled { background: var(--green-bg); color: var(--green); border: 1px solid var(--green); }
+    .tag-dca { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue); }
+    .tag-rec { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+    .dot-yellow { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); animation: pulse 2s infinite; }
+    .dot-green { background: var(--green); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .scenario-row:hover td { background: var(--surface2); }
+    .good { color: var(--green); } .warn { color: var(--yellow); } .bad { color: var(--red); }
+
+    /* RECOMMENDATION BOX */
+    .rec-box { background: var(--surface2); border-left: 3px solid var(--purple); border-radius: 0 6px 6px 0; padding: 12px 14px; margin-bottom: 10px; }
+    .rec-box:last-child { margin-bottom: 0; }
+    .rec-title { font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--purple); }
+    .rec-body { color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .rec-body strong { color: var(--text); }
+    .rec-trigger { display: inline-block; background: var(--purple-bg); border: 1px solid var(--purple); color: var(--purple); font-size: 11px; padding: 1px 7px; border-radius: 4px; margin-bottom: 4px; }
+    .chart-wrap { position: relative; height: 220px; }
+    .metric-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-top: 1px solid var(--border); }
+    .metric-row:first-of-type { border-top: none; }
+    .metric-label { color: var(--muted); font-size: 12px; }
+    .metric-value { font-weight: 600; font-size: 13px; }
+    .budget-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--border); }
+    .budget-row:first-of-type { border-top: none; }
+    .budget-bar-outer { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+    .budget-bar-inner { height: 100%; border-radius: 3px; }
+    .budget-label { color: var(--muted); font-size: 11px; min-width: 110px; }
+    .budget-val { font-size: 11px; font-weight: 600; min-width: 60px; text-align: right; }
+    .footer { border-top: 1px solid var(--border); padding: 14px 24px; color: var(--muted); font-size: 11px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .footer a { color: var(--blue); text-decoration: none; }
+    .alert-banner { background: var(--yellow-bg); border: 1px solid var(--yellow); border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; font-size: 12px; color: var(--yellow); display: flex; align-items: center; gap: 8px; }
+    .calc-result { background: var(--surface2); border-radius: 8px; padding: 14px; margin-top: 12px; }
+    .calc-result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .calc-result-label { color: var(--muted); font-size: 11px; }
+    .calc-result-val { font-size: 15px; font-weight: 700; }
+
+    /* ─── BUY LOGGER ─── */
+    .logger-panel { background: var(--surface); border: 1px solid var(--tao); border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; }
+    .logger-panel h2 { font-size: 14px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .logger-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; align-items: end; margin-bottom: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+    .form-input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 6px; font-size: 13px; width: 100%; }
+    .form-input:focus { outline: none; border-color: var(--tao); }
+    .form-select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 6px; font-size: 13px; width: 100%; cursor: pointer; }
+    .btn-log { background: var(--tao); color: #000; border: none; padding: 8px 18px; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer; width: 100%; transition: opacity .15s; }
+    .btn-log:hover { opacity: .85; }
+    .btn-log:disabled { opacity: .4; cursor: not-allowed; }
+    .auto-calc-hint { font-size: 11px; color: var(--tao); margin-top: 2px; height: 14px; }
+    .log-summary { display: flex; gap: 16px; padding: 10px 14px; background: var(--surface2); border-radius: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .log-summary-item { font-size: 12px; }
+    .log-summary-label { color: var(--muted); }
+    .log-summary-val { font-weight: 700; margin-left: 4px; }
+    .history-table td { font-size: 12px; }
+    .btn-delete { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 4px; transition: color .15s; }
+    .btn-delete:hover { color: var(--red); }
+    .type-badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; font-weight: 500; }
+    .type-dca { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue); }
+    .type-limit { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow); }
+    .type-disc { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple); }
+    .empty-log { color: var(--muted); font-size: 12px; text-align: center; padding: 16px; font-style: italic; }
+    .log-toggle { background: none; border: 1px solid var(--border); color: var(--muted); padding: 3px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; margin-left: auto; }
+    .log-toggle:hover { border-color: var(--tao); color: var(--tao); }
+    .initial-row td { color: var(--muted); font-style: italic; }
+    .streak-badge { background: var(--green-bg); border: 1px solid var(--green); color: var(--green); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">τ</div>
+    <div>
+      <h1>TAO Accumulation Dashboard</h1>
+      <div class="header-subtitle">Goal: 100 TAO by Dec 31, 2026 · Avg cost target ≤ $250 · Ceiling $300</div>
+    </div>
+  </div>
+  <div style="text-align:right">
+    <div class="price-badge" id="livePriceBadge">$205.00</div>
+    <div style="color:var(--muted); font-size:11px; margin-top:3px" id="daysLabel">Loading…</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ─── ALERT ─── -->
+  <div class="alert-banner" id="alertBanner">
+    ⚠ &nbsp;<span id="alertText">Initializing…</span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       DAILY BUY LOGGER
+  ════════════════════════════════════════════════════════ -->
+  <div class="logger-panel">
+    <h2>
+      📥 Daily Buy Logger
+      <span class="badge" id="streakBadge">0-day streak</span>
+      <button class="log-toggle" id="historyToggle" onclick="toggleHistory()">Show history ▾</button>
+    </h2>
+
+    <!-- LOG FORM -->
+    <div class="logger-form" id="logForm">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="buyDate" class="form-input" />
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select id="buyType" class="form-select" onchange="onTypeChange()">
+          <option value="dca">DCA ($30)</option>
+          <option value="limit">Limit Fill</option>
+          <option value="disc">Discretionary</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Fill Price ($)</label>
+        <input type="number" id="buyPrice" class="form-input" placeholder="e.g. 205.00" step="0.01" oninput="onPriceInput()" />
+        <div class="auto-calc-hint" id="priceHint"></div>
+      </div>
+      <div class="form-group">
+        <label>TAO Received</label>
+        <input type="number" id="buyTao" class="form-input" placeholder="e.g. 0.146" step="0.0001" oninput="onTaoInput()" />
+      </div>
+      <div class="form-group">
+        <label>Purchase Amt ($)</label>
+        <input type="number" id="buyCost" class="form-input" placeholder="e.g. 30.00" step="0.01" oninput="onCostInput()" />
+      </div>
+      <div class="form-group">
+        <label>Fee ($)</label>
+        <input type="number" id="buyFee" class="form-input" placeholder="e.g. 1.99" step="0.01" min="0" />
+        <div class="auto-calc-hint" id="feeHint" style="color:var(--muted)">Coinbase One avg · $0 first $500/mo</div>
+      </div>
+      <div class="form-group">
+        <label style="opacity:0">Log</label>
+        <button class="btn-log" id="logBtn" onclick="logBuy()">+ Log Buy</button>
+      </div>
+    </div>
+
+    <!-- POSITION SUMMARY (from logs) -->
+    <div class="log-summary" id="logSummary">
+      <div class="log-summary-item"><span class="log-summary-label">Logged buys:</span><span class="log-summary-val" id="sumCount" style="color:var(--tao)">0</span></div>
+      <div class="log-summary-item"><span class="log-summary-label">TAO from logs:</span><span class="log-summary-val" id="sumTao" style="color:var(--tao)">0.000</span></div>
+      <div class="log-summary-item"><span class="log-summary-label">Spent from logs:</span><span class="log-summary-val" id="sumCost" style="color:var(--blue)">$0</span></div>
+      <div class="log-summary-item"><span class="log-summary-label">Fees paid:</span><span class="log-summary-val" id="sumFees" style="color:var(--red)">$0.00</span></div>
+      <div class="log-summary-item"><span class="log-summary-label">Current position:</span><span class="log-summary-val" id="sumPosition" style="color:var(--text)">29.78 TAO @ $230.38</span></div>
+      <div class="log-summary-item"><span class="log-summary-label">Last logged:</span><span class="log-summary-val" id="sumLastDate" style="color:var(--muted)">—</span></div>
+    </div>
+
+    <!-- BUY HISTORY TABLE -->
+    <div id="historySection" style="display:none">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Price</th>
+            <th>TAO</th>
+            <th>Purchase</th>
+            <th>Fee</th>
+            <th>Total Out</th>
+            <th>Eff. $/TAO</th>
+            <th>Running TAO</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td colspan="10" class="empty-log">No buys logged yet. Log your first DCA below.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ─── KPI CARDS ─── -->
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-tao">
+      <div class="kpi-label">TAO Owned</div>
+      <div class="kpi-value" id="kpiOwned">29.78</div>
+      <div class="kpi-sub">of 100 TAO goal</div>
+    </div>
+    <div class="kpi-card kpi-yellow">
+      <div class="kpi-label">Avg Cost</div>
+      <div class="kpi-value" id="kpiAvgCost">$230.38</div>
+      <div class="kpi-sub">target ≤ $250</div>
+    </div>
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-label">Cost Basis</div>
+      <div class="kpi-value" id="kpiCostBasis">$6,855</div>
+      <div class="kpi-sub">total invested</div>
+    </div>
+    <div class="kpi-card kpi-green">
+      <div class="kpi-label">TAO Still Needed</div>
+      <div class="kpi-value" id="kpiNeeded">70.22</div>
+      <div class="kpi-sub" id="kpiNeededSub">budget headroom: $18,145</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Days Remaining</div>
+      <div class="kpi-value" id="kpiDays">—</div>
+      <div class="kpi-sub">to Dec 31, 2026</div>
+    </div>
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-label">DCA Budget Left</div>
+      <div class="kpi-value" id="kpiDcaBudget">$—</div>
+      <div class="kpi-sub">$30/day × days remaining</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">TAO/Day (DCA)</div>
+      <div class="kpi-value" id="kpiTaoPerDay">0.146</div>
+      <div class="kpi-sub" id="kpiTaoPerDaySub">at current price</div>
+    </div>
+    <div class="kpi-card kpi-yellow">
+      <div class="kpi-label">Limit Order TAO</div>
+      <div class="kpi-value" id="kpiLimitTao">57.00</div>
+      <div class="kpi-sub" id="kpiLimitSub">pending ($8,825 at ~$155 avg)</div>
+    </div>
+  </div>
+
+  <!-- ─── PROGRESS BAR ─── -->
+  <div class="progress-section">
+    <div class="progress-header">
+      <h2>Progress to 100 TAO Goal</h2>
+      <span class="progress-pct" id="progressPct">29.78%</span>
+    </div>
+    <div class="progress-bar-outer">
+      <div class="progress-bar-inner" id="progressBar" style="width:29.78%"></div>
+    </div>
+    <div class="progress-ticks">
+      <span>0</span><span>25</span><span>50 ← midpoint</span><span>75</span><span>100 TAO</span>
+    </div>
+    <div style="margin-top:10px; display:flex; gap:20px; flex-wrap:wrap; font-size:12px; color:var(--muted)">
+      <span>🟢 <strong style="color:var(--text)" id="ownedLabel">29.78 TAO</strong> owned</span>
+      <span>🟡 <strong style="color:var(--yellow)" id="limitLabel">57.00 TAO</strong> in limit orders</span>
+      <span>🔵 <strong style="color:var(--blue)" id="dcaProjectedLabel">~44.1 TAO</strong> projected from DCA</span>
+    </div>
+  </div>
+
+  <!-- ─── PRICE CONTROL + LIVE CALCULATOR ─── -->
+  <div class="two-col">
+
+    <div class="panel">
+      <h2>⚙️ Live Average Cost Calculator</h2>
+      <div class="price-control">
+        <label>Current TAO Price ($):</label>
+        <input type="number" id="priceInput" class="price-input" value="205" step="1" min="1" />
+        <button class="btn-preset" onclick="setPrice(143)">$143</button>
+        <button class="btn-preset" onclick="setPrice(160)">$160</button>
+        <button class="btn-preset" onclick="setPrice(190)">$190</button>
+        <button class="btn-preset" onclick="setPrice(205)">$205 ★</button>
+        <button class="btn-preset" onclick="setPrice(250)">$250</button>
+        <button class="btn-preset" onclick="setPrice(300)">$300</button>
+      </div>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:8px;">
+        Enter price to project future accumulation. Your logged buys are already reflected in the KPIs above.
+      </div>
+      <div class="calc-result">
+        <div class="calc-result-grid">
+          <div><div class="calc-result-label">TAO/day from DCA</div><div class="calc-result-val" id="calcTaoPerDay" style="color:var(--tao)">0.146</div></div>
+          <div><div class="calc-result-label">Future DCA TAO (remaining days)</div><div class="calc-result-val" id="calcDcaTotal" style="color:var(--blue)">—</div></div>
+          <div><div class="calc-result-label">Projected total (current + future DCA)</div><div class="calc-result-val" id="calcTotalTao" style="color:var(--text)">—</div></div>
+          <div><div class="calc-result-label">Projected avg cost</div><div class="calc-result-val" id="calcAvgCost" style="color:var(--yellow)">—</div></div>
+          <div><div class="calc-result-label">Max avg price on remaining TAO</div><div class="calc-result-val" id="calcMaxPrice" style="color:var(--green)">—</div></div>
+          <div><div class="calc-result-label">Goal status</div><div class="calc-result-val" id="calcGoalStatus">—</div></div>
+        </div>
+      </div>
+      <div style="margin-top:12px; padding:10px 12px; background:var(--surface2); border-radius:6px; font-size:12px; color:var(--muted); line-height:1.7">
+        <strong style="color:var(--text)">Budget ceiling:</strong> $25,000 total for 100 TAO at $250 avg.<br>
+        Already spent: <strong style="color:var(--text)" id="calcSpent">$6,855</strong> · Remaining budget: <strong style="color:var(--green)" id="calcRemainingBudget">$18,145</strong> for <strong style="color:var(--text)" id="calcRemainingTao">70.22</strong> more TAO (≤ <strong style="color:var(--yellow)" id="calcMaxPerTao">$258.43</strong>/TAO avg on remaining).
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>📋 Limit Orders <span class="badge" id="limitBadge">5 active · 57 TAO · $8,825</span></h2>
+      <table>
+        <thead>
+          <tr><th>Price</th><th>Size</th><th>Cost</th><th>Cum. TAO</th><th>Status</th><th>Distance</th></tr>
+        </thead>
+        <tbody id="limitsTable"></tbody>
+      </table>
+      <div style="margin-top:12px; padding:10px 12px; background:var(--surface2); border-radius:6px; font-size:11px; color:var(--muted); line-height:1.6" id="limitNote">
+        <strong style="color:var(--text)">If all 5 limits fill:</strong> You'd own <strong style="color:var(--tao)" id="limitFillTotal">86.78 TAO</strong> at an avg cost of <strong style="color:var(--green)" id="limitFillAvg">$180.70</strong>. Only <strong id="limitFillRemaining">13.22</strong> more TAO needed from DCA.
+        <br>52-week low: <strong style="color:var(--red)">$143.10</strong> (Feb 6, 2026) · ATH: <strong>$757.60</strong>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ─── SCENARIOS ─── -->
+  <div class="panel" style="margin-bottom:20px">
+    <h2>📊 Price Scenario Analysis <span class="badge">bear · base · bull</span></h2>
+    <table>
+      <thead>
+        <tr><th>Scenario</th><th>Price Range</th><th>Limits Fill</th><th>DCA TAO</th><th>Total TAO</th><th>Avg Cost</th><th>Hit $250?</th><th>Reach 100?</th><th>Notes</th></tr>
+      </thead>
+      <tbody id="scenarioBody"></tbody>
+    </table>
+    <div style="margin-top:10px; font-size:11px; color:var(--muted)">* Scenarios use your current live position from the buy logger as the starting point.</div>
+  </div>
+
+  <!-- ─── RECOMMENDATIONS + CHART ─── -->
+  <div class="two-col">
+    <div class="panel">
+      <h2>🎯 Buy Recommendations</h2>
+      <div class="rec-box">
+        <div class="rec-title">✅ Keep Daily DCA — Do Not Skip</div>
+        <div class="rec-body"><span class="rec-trigger">ALWAYS ON</span><br>
+          The $30/day at 6am CT is your best baseline. Log each fill in the Buy Logger above — your avg cost and projections update instantly. Never skip a DCA day.</div>
+      </div>
+      <div class="rec-box" style="border-left-color:var(--green)">
+        <div class="rec-title" style="color:var(--green)">✅ Gap Filler Placed: 7 TAO @ $175 — Done</div>
+        <div class="rec-body"><span class="rec-trigger" style="background:var(--green-bg);border-color:var(--green);color:var(--green)">PLACED Mar 12</span><br>
+          When this fills, log it as a <strong>Limit Fill</strong> at $175 in the logger. All 5 limits filling puts you at <strong>86.78 TAO at $180.70 avg</strong> — just 13.22 TAO from the goal.</div>
+      </div>
+      <div class="rec-box">
+        <div class="rec-title">📉 Opportunistic Dip Buys: $50–$100 Extra</div>
+        <div class="rec-body"><span class="rec-trigger">TRIGGER: Price drops ≥5% in a day</span><br>
+          On any single-day drop of 5%+, buy an extra <strong>$50–$100</strong> beyond the DCA. Log as <strong>Discretionary</strong> in the logger. Cap at 2 per week.</div>
+      </div>
+      <div class="rec-box">
+        <div class="rec-title">💰 Flat-Base Rescue: +$2,200 Lump Sum</div>
+        <div class="rec-body"><span class="rec-trigger">TRIGGER: Below 60 TAO on July 1</span><br>
+          Check the dashboard on July 1. If the KPI shows under 60 TAO, deploy a <strong>~$2,200 lump sum</strong> to stay on pace. Log it as Discretionary.</div>
+      </div>
+      <div class="rec-box">
+        <div class="rec-title">🚨 Bull Run Protocol: Pause at $285+</div>
+        <div class="rec-body"><span class="rec-trigger">TRIGGER: Price breaks above $285</span><br>
+          If TAO rallies above $285, pause DCA. Set a ceiling: <strong>never buy more than 5 TAO in a single day above $280.</strong> Use the price calculator to model your avg cost at any price.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>📈 TAO Accumulation Projection</h2>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">Projected from your current live position. Dashed line = 100 TAO goal.</div>
+      <div class="chart-wrap"><canvas id="accChart"></canvas></div>
+      <div style="margin-top:12px">
+        <div class="metric-row"><span class="metric-label">Bear ($150 avg)</span><span class="metric-value good" id="scenBear">—</span></div>
+        <div class="metric-row"><span class="metric-label">Base ($200 avg)</span><span class="metric-value warn" id="scenBase">—</span></div>
+        <div class="metric-row"><span class="metric-label">Bull ($270 avg)</span><span class="metric-value bad" id="scenBull">—</span></div>
+        <div class="metric-row"><span class="metric-label">DCA Only (current price)</span><span class="metric-value" id="scenDca" style="color:var(--muted)">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── BUDGET + PRICE CHART ─── -->
+  <div class="two-col">
+    <div class="panel">
+      <h2>💼 Capital Allocation Breakdown</h2>
+      <div class="budget-row">
+        <div class="budget-label" style="color:var(--tao)">Already Invested</div>
+        <div class="budget-bar-outer"><div class="budget-bar-inner" id="budgetBarInvested" style="width:27%; background:var(--tao)"></div></div>
+        <div class="budget-val" style="color:var(--tao)" id="budgetValInvested">$6,855</div>
+      </div>
+      <div class="budget-row">
+        <div class="budget-label" style="color:var(--yellow)">Active Limit Orders</div>
+        <div class="budget-bar-outer"><div class="budget-bar-inner" id="budgetBarLimits" style="width:30%; background:var(--yellow)"></div></div>
+        <div class="budget-val" style="color:var(--yellow)" id="budgetValLimits">$8,825</div>
+      </div>
+      <div class="budget-row">
+        <div class="budget-label" style="color:var(--blue)">Remaining DCA Budget</div>
+        <div class="budget-bar-outer"><div class="budget-bar-inner" id="budgetBarDca" style="width:35%; background:var(--blue)"></div></div>
+        <div class="budget-val" style="color:var(--blue)" id="budgetValDca">$8,820</div>
+      </div>
+      <div class="budget-row">
+        <div class="budget-label" style="color:var(--purple)">Discretionary Reserve</div>
+        <div class="budget-bar-outer"><div class="budget-bar-inner" style="width:8%; background:var(--purple)"></div></div>
+        <div class="budget-val" style="color:var(--purple)">~$2,000</div>
+      </div>
+      <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:12px">
+        <div class="metric-row"><span class="metric-label">Total committed (invested + limits + DCA)</span><span class="metric-value" id="budgetTotalCommitted">$24,500</span></div>
+        <div class="metric-row"><span class="metric-label">Max spend to avg ≤ $250</span><span class="metric-value" style="color:var(--green)">$25,000</span></div>
+        <div class="metric-row"><span class="metric-label">Buffer remaining</span><span class="metric-value" id="budgetBuffer" style="color:var(--yellow)">$500</span></div>
+      </div>
+      <div style="margin-top:12px; padding:10px 12px; background:var(--green-bg); border:1px solid var(--green); border-radius:6px; font-size:12px; color:var(--green)">
+        <strong>Key insight:</strong> All 5 limit orders + full remaining DCA = $24,500 deployed. In bear/base cases, your avg cost stays well under $200. The math is on your side unless price stays permanently above $280.
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>📉 TAO Price Context (2026 YTD)</h2>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">Key price levels with your buy zones highlighted.</div>
+      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+      <div style="margin-top:10px; display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:11px;">
+        <div style="padding:6px 8px; background:var(--red-bg); border-radius:4px; color:var(--red)">🔴 ATH $757.60</div>
+        <div style="padding:6px 8px; background:var(--surface2); border-radius:4px; color:var(--muted)">2026 High: $302.15</div>
+        <div style="padding:6px 8px; background:var(--tao-bg); border-radius:4px; color:var(--tao)">✦ Current: ~$205</div>
+        <div style="padding:6px 8px; background:var(--surface2); border-radius:4px; color:var(--muted)" id="priceContextAvg">Your avg: $230.38</div>
+        <div style="padding:6px 8px; background:var(--yellow-bg); border-radius:4px; color:var(--yellow)">🟡 Limits: $190/$175/$160</div>
+        <div style="padding:6px 8px; background:var(--yellow-bg); border-radius:4px; color:var(--yellow)">🟡 Limits: $150/$140</div>
+        <div style="padding:6px 8px; background:var(--red-bg); border-radius:4px; color:var(--red)">2026 Low: $143.10</div>
+        <div style="padding:6px 8px; background:var(--green-bg); border-radius:4px; color:var(--green)">Goal ceiling: $300</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── MILESTONE CALENDAR ─── -->
+  <div class="panel" style="margin-bottom:20px">
+    <h2>🗓️ Milestone & Decision Calendar</h2>
+    <table>
+      <thead><tr><th>Date / Trigger</th><th>Event / Action</th><th>TAO Target</th><th>Priority</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Mar 12 ✓</strong></td><td>7 TAO limit order placed @ $175 — gap filled</td><td>+7 potential</td><td><span class="tag tag-filled"><span class="dot dot-green"></span> Done</span></td></tr>
+        <tr><td><strong>Daily 6am CT</strong></td><td>$30 DCA executes on Coinbase → log fill price in Buy Logger above</td><td>+0.14–0.21/day</td><td><span class="tag tag-dca">DCA Active</span></td></tr>
+        <tr><td><strong>Price ≤ $190</strong></td><td>5 TAO limit fills → log as "Limit Fill" at $190</td><td>~34.78 TAO</td><td><span class="tag tag-active"><span class="dot dot-yellow"></span> Pending</span></td></tr>
+        <tr><td><strong>Price ≤ $175</strong></td><td>7 TAO limit fills → log as "Limit Fill" at $175</td><td>~41.78 TAO</td><td><span class="tag tag-active"><span class="dot dot-yellow"></span> Pending</span></td></tr>
+        <tr><td><strong>Price ≤ $160</strong></td><td>10 TAO limit fills → log as "Limit Fill" at $160</td><td>~51.78 TAO</td><td><span class="tag tag-active"><span class="dot dot-yellow"></span> Pending</span></td></tr>
+        <tr><td><strong>Price ≤ $150</strong></td><td>15 TAO limit fills → log as "Limit Fill" at $150</td><td>~66.78 TAO</td><td><span class="tag tag-active"><span class="dot dot-yellow"></span> Pending</span></td></tr>
+        <tr><td><strong>Price ≤ $140</strong></td><td>20 TAO limit fills → log as "Limit Fill" at $140</td><td>~86.78 TAO</td><td><span class="tag tag-active"><span class="dot dot-yellow"></span> Pending</span></td></tr>
+        <tr><td><strong>July 1 checkpoint</strong></td><td>Check Buy Logger. If below 60 TAO, deploy $2,200 lump sum.</td><td>≥ 60 TAO</td><td><span class="tag tag-rec">Conditional</span></td></tr>
+        <tr><td><strong>Sep 1 checkpoint</strong></td><td>Check Buy Logger. If below 80 TAO, increase DCA or lump sum.</td><td>≥ 80 TAO</td><td><span class="tag tag-rec">Conditional</span></td></tr>
+        <tr><td><strong>Dec 31, 2026</strong></td><td>Goal: 100 TAO at avg ≤ $250.</td><td>100 TAO</td><td><span class="tag tag-filled"><span class="dot dot-green"></span> Goal</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<div class="footer">
+  <div>TAO Dashboard v3 · Updated with Buy Logger · For personal use only. Not financial advice.</div>
+  <div>Sources: <a href="https://www.coinbase.com/price/bittensor" target="_blank">Coinbase</a> · <a href="https://www.coingecko.com/en/coins/bittensor" target="_blank">CoinGecko</a> · <a href="https://finance.yahoo.com/quote/TAO22974-USD/history/" target="_blank">Yahoo Finance</a></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════════════════════
+const INITIAL_TAO       = 29.78;
+const INITIAL_AVG_COST  = 230.38;
+const INITIAL_COST      = INITIAL_TAO * INITIAL_AVG_COST;
+const GOAL              = 100;
+const DAILY_DCA         = 30;
+const END_DATE          = new Date('2026-12-31');
+const STORAGE_KEY       = 'tao_buys_v3';
+
+const LIMIT_ORDERS = [
+  { price: 190, qty: 5,  total: 950  },
+  { price: 175, qty: 7,  total: 1225 },
+  { price: 160, qty: 10, total: 1600 },
+  { price: 150, qty: 15, total: 2250 },
+  { price: 140, qty: 20, total: 2800 },
+];
+const TOTAL_LIMIT_TAO  = LIMIT_ORDERS.reduce((s,l) => s+l.qty, 0);
+const TOTAL_LIMIT_COST = LIMIT_ORDERS.reduce((s,l) => s+l.total, 0);
+
+let accChart = null;
+
+// ═══════════════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════════════
+function daysLeft() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.max(0, Math.ceil((END_DATE - today) / 86400000));
+}
+function todayStr() {
+  return new Date().toISOString().slice(0,10);
+}
+function fmt(n, d=2) { return (+n).toFixed(d); }
+function fmtUSD(n) { return '$' + Math.round(n).toLocaleString(); }
+function fmtDate(s) {
+  const d = new Date(s + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+}
+
+// ═══════════════════════════════════════════════════════
+//  BUY LOG STORAGE
+// ═══════════════════════════════════════════════════════
+function loadBuys() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch(e) { return []; }
+}
+function saveBuys(buys) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(buys));
+}
+
+// ═══════════════════════════════════════════════════════
+//  POSITION COMPUTATION (initial + logged)
+// ═══════════════════════════════════════════════════════
+function computePosition() {
+  const buys = loadBuys();
+  const loggedTao  = buys.reduce((s,b) => s + parseFloat(b.tao),  0);
+  const loggedCost = buys.reduce((s,b) => s + parseFloat(b.cost), 0);
+  const loggedFees = buys.reduce((s,b) => s + parseFloat(b.fee || 0), 0);
+  const totalTao   = INITIAL_TAO  + loggedTao;
+  const totalCost  = INITIAL_COST + loggedCost + loggedFees; // fees fold into cost basis
+  return {
+    tao:      totalTao,
+    cost:     totalCost,
+    avgCost:  totalCost / totalTao,
+    loggedTao, loggedCost, loggedFees,
+    buys
+  };
+}
+
+// Which limits have been logged as filled?
+function filledLimitPrices() {
+  const buys = loadBuys();
+  return new Set(buys.filter(b => b.type === 'limit').map(b => Math.round(parseFloat(b.price))));
+}
+
+// ═══════════════════════════════════════════════════════
+//  DCA STREAK
+// ═══════════════════════════════════════════════════════
+function calcStreak(buys) {
+  const dcaDates = [...new Set(buys.filter(b=>b.type==='dca').map(b=>b.date))].sort().reverse();
+  if (!dcaDates.length) return 0;
+  let streak = 0;
+  let d = new Date(todayStr() + 'T12:00:00');
+  for (let i = 0; i < 365; i++) {
+    const s = d.toISOString().slice(0,10);
+    if (dcaDates.includes(s)) { streak++; d.setDate(d.getDate()-1); }
+    else if (streak > 0) break;
+    else d.setDate(d.getDate()-1);
+  }
+  return streak;
+}
+
+// ═══════════════════════════════════════════════════════
+//  FORM HELPERS
+// ═══════════════════════════════════════════════════════
+function suggestFee(cost) {
+  // Coinbase One: first $500/month free, avg $0.55/trade after that
+  // We use $0.55 as the standing default for DCA
+  return 0.55;
+}
+
+function onTypeChange() {
+  const type = document.getElementById('buyType').value;
+  const costEl = document.getElementById('buyCost');
+  const feeEl  = document.getElementById('buyFee');
+  const taoEl  = document.getElementById('buyTao');
+  if (type === 'dca') {
+    costEl.value = '30.00';
+    feeEl.value  = '0.55';
+    document.getElementById('feeHint').textContent = 'Coinbase One avg';
+    const p = parseFloat(document.getElementById('buyPrice').value);
+    if (p > 0) { taoEl.value = fmt(30/p, 6); }
+    document.getElementById('priceHint').textContent = '$30 purchase auto-set';
+  } else if (type === 'limit') {
+    feeEl.value = '0.00';
+    document.getElementById('feeHint').textContent = 'Limit fills: $0 fee';
+  } else {
+    feeEl.value = '0.55';
+    document.getElementById('feeHint').textContent = 'Coinbase One avg';
+    document.getElementById('priceHint').textContent = '';
+  }
+}
+
+function onPriceInput() {
+  const p    = parseFloat(document.getElementById('buyPrice').value);
+  const type = document.getElementById('buyType').value;
+  if (!p || p <= 0) return;
+  if (type === 'dca') {
+    document.getElementById('buyTao').value  = fmt(30/p, 6);
+    document.getElementById('buyCost').value = '30.00';
+    const fee = parseFloat(document.getElementById('buyFee').value) || 0;
+    document.getElementById('priceHint').textContent = `$30 ÷ $${p.toFixed(2)} = ${fmt(30/p,4)} TAO · total out: $${fmt(30+fee,2)}`;
+  } else {
+    const tao = parseFloat(document.getElementById('buyTao').value);
+    if (tao > 0) document.getElementById('buyCost').value = fmt(tao * p, 2);
+  }
+}
+
+function onTaoInput() {
+  const p = parseFloat(document.getElementById('buyPrice').value);
+  const t = parseFloat(document.getElementById('buyTao').value);
+  if (p > 0 && t > 0) document.getElementById('buyCost').value = fmt(t * p, 2);
+}
+
+function onCostInput() {
+  const p = parseFloat(document.getElementById('buyPrice').value);
+  const c = parseFloat(document.getElementById('buyCost').value);
+  if (p > 0 && c > 0) document.getElementById('buyTao').value = fmt(c/p, 6);
+}
+
+function setPrice(p) {
+  document.getElementById('priceInput').value = p;
+  document.getElementById('livePriceBadge').textContent = '$' + p.toFixed(2);
+  recalc();
+}
+
+// ═══════════════════════════════════════════════════════
+//  LOG A BUY
+// ═══════════════════════════════════════════════════════
+function logBuy() {
+  const date  = document.getElementById('buyDate').value;
+  const type  = document.getElementById('buyType').value;
+  const price = parseFloat(document.getElementById('buyPrice').value);
+  const tao   = parseFloat(document.getElementById('buyTao').value);
+  const cost  = parseFloat(document.getElementById('buyCost').value);
+  const fee   = parseFloat(document.getElementById('buyFee').value) || 0;
+
+  if (!date) { flashErr('buyDate', 'Enter a date'); return; }
+  if (!price || price <= 0) { flashErr('buyPrice', 'Enter a price'); return; }
+  if (!tao   || tao   <= 0) { flashErr('buyTao',   'Enter TAO amount'); return; }
+  if (!cost  || cost  <= 0) { flashErr('buyCost',  'Enter cost'); return; }
+
+  const buys = loadBuys();
+  buys.push({ id: Date.now(), date, type, price: fmt(price,4), tao: fmt(tao,6), cost: fmt(cost,4), fee: fmt(fee,4) });
+  buys.sort((a,b) => a.date.localeCompare(b.date));
+  saveBuys(buys);
+
+  // Reset form (keep type and date)
+  document.getElementById('buyPrice').value = '';
+  document.getElementById('buyTao').value   = '';
+  if (type === 'dca') {
+    document.getElementById('buyCost').value = '30.00';
+    document.getElementById('buyFee').value  = '0.55';
+  } else if (type === 'limit') {
+    document.getElementById('buyCost').value = '';
+    document.getElementById('buyFee').value  = '0.00';
+  } else {
+    document.getElementById('buyCost').value = '';
+    document.getElementById('buyFee').value  = '0.55';
+  }
+  document.getElementById('priceHint').textContent = '';
+
+  refreshAll();
+  // Flash confirm
+  const btn = document.getElementById('logBtn');
+  btn.textContent = '✓ Logged!';
+  btn.style.background = '#3fb950';
+  setTimeout(() => { btn.textContent = '+ Log Buy'; btn.style.background = 'var(--tao)'; }, 1500);
+}
+
+function flashErr(id, msg) {
+  const el = document.getElementById(id);
+  el.style.borderColor = 'var(--red)';
+  setTimeout(() => el.style.borderColor = 'var(--border)', 1500);
+}
+
+function deleteBuy(id) {
+  const buys = loadBuys().filter(b => b.id !== id);
+  saveBuys(buys);
+  refreshAll();
+}
+
+function toggleHistory() {
+  const sec = document.getElementById('historySection');
+  const btn = document.getElementById('historyToggle');
+  const vis = sec.style.display === 'none';
+  sec.style.display = vis ? 'block' : 'none';
+  btn.textContent = vis ? 'Hide history ▴' : 'Show history ▾';
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDER BUY HISTORY
+// ═══════════════════════════════════════════════════════
+function renderHistory(buys, position) {
+  const tbody = document.getElementById('historyBody');
+  if (!buys.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="empty-log">No buys logged yet. Use the form above to log your first buy.</td></tr>';
+    return;
+  }
+
+  let runTao = INITIAL_TAO;
+  let rows = `<tr class="initial-row">
+    <td>Starting position</td><td>—</td><td>$${fmt(INITIAL_AVG_COST,2)}</td>
+    <td>${fmt(INITIAL_TAO,4)}</td><td>${fmtUSD(INITIAL_COST)}</td>
+    <td>—</td><td>${fmtUSD(INITIAL_COST)}</td>
+    <td style="color:var(--muted)">$${fmt(INITIAL_AVG_COST,2)}</td>
+    <td style="color:var(--tao)">${fmt(INITIAL_TAO,4)}</td><td></td>
+  </tr>`;
+
+  buys.forEach(b => {
+    runTao += parseFloat(b.tao);
+    const fee      = parseFloat(b.fee || 0);
+    const cost     = parseFloat(b.cost);
+    const tao      = parseFloat(b.tao);
+    const totalOut = cost + fee;
+    const effPrice = totalOut / tao;
+    const typeBadge = b.type === 'dca'   ? '<span class="type-badge type-dca">DCA</span>' :
+                      b.type === 'limit' ? '<span class="type-badge type-limit">Limit</span>' :
+                                           '<span class="type-badge type-disc">Disc.</span>';
+    const feeColor  = fee > 0 ? 'color:var(--red)' : 'color:var(--muted)';
+    rows += `<tr>
+      <td>${fmtDate(b.date)}</td>
+      <td>${typeBadge}</td>
+      <td>$${fmt(b.price,2)}</td>
+      <td style="color:var(--tao)">${fmt(tao,4)}</td>
+      <td>$${fmt(cost,2)}</td>
+      <td style="${feeColor}">$${fmt(fee,2)}</td>
+      <td style="font-weight:600">$${fmt(totalOut,2)}</td>
+      <td style="color:var(--yellow)">$${fmt(effPrice,2)}</td>
+      <td style="color:var(--tao);font-weight:600">${fmt(runTao,4)}</td>
+      <td><button class="btn-delete" onclick="deleteBuy(${b.id})" title="Remove">✕</button></td>
+    </tr>`;
+  });
+  tbody.innerHTML = rows;
+}
+
+// ═══════════════════════════════════════════════════════
+//  REFRESH SUMMARY BAR
+// ═══════════════════════════════════════════════════════
+function refreshSummary(buys, position) {
+  document.getElementById('sumCount').textContent = buys.length;
+  document.getElementById('sumTao').textContent   = fmt(position.loggedTao, 4);
+  document.getElementById('sumCost').textContent  = fmtUSD(position.loggedCost);
+  document.getElementById('sumFees').textContent  = '$' + fmt(position.loggedFees, 2);
+  document.getElementById('sumPosition').textContent = `${fmt(position.tao,4)} TAO @ $${fmt(position.avgCost,2)}`;
+
+  const last = buys.length ? fmtDate(buys[buys.length-1].date) : '—';
+  document.getElementById('sumLastDate').textContent = last;
+
+  const streak = calcStreak(buys);
+  const sb = document.getElementById('streakBadge');
+  sb.textContent = streak > 0 ? `🔥 ${streak}-day streak` : '0-day streak';
+  sb.style.background = streak >= 7 ? 'var(--green-bg)' : 'var(--surface2)';
+  sb.style.borderColor = streak >= 7 ? 'var(--green)' : 'var(--border)';
+  sb.style.color = streak >= 7 ? 'var(--green)' : 'var(--muted)';
+}
+
+// ═══════════════════════════════════════════════════════
+//  RECALC — runs on price change AND after log changes
+// ═══════════════════════════════════════════════════════
+function recalc() {
+  const p       = parseFloat(document.getElementById('priceInput').value) || 205;
+  const days    = daysLeft();
+  const dcaBudget = days * DAILY_DCA;
+  const position = computePosition();
+  const filled  = filledLimitPrices();
+
+  // Days / budget KPIs
+  document.getElementById('kpiDays').textContent    = days;
+  document.getElementById('kpiDcaBudget').textContent = fmtUSD(dcaBudget);
+  document.getElementById('kpiTaoPerDay').textContent = fmt(DAILY_DCA/p, 3);
+  document.getElementById('kpiTaoPerDaySub').textContent = `at $${p.toFixed(0)}`;
+  document.getElementById('daysLabel').textContent  = `${days} days to Dec 31, 2026`;
+  document.getElementById('livePriceBadge').textContent = '$' + p.toFixed(2);
+
+  // Position KPIs
+  document.getElementById('kpiOwned').textContent   = fmt(position.tao, 4);
+  document.getElementById('kpiAvgCost').textContent = '$' + fmt(position.avgCost, 2);
+  document.getElementById('kpiCostBasis').textContent = fmtUSD(position.cost);
+  const needed = Math.max(0, GOAL - position.tao);
+  document.getElementById('kpiNeeded').textContent = fmt(needed, 4);
+  const budgetMax = GOAL * 250;
+  const budgetRem = budgetMax - position.cost;
+  const maxAvgRem = needed > 0 ? budgetRem / needed : 0;
+  document.getElementById('kpiNeededSub').textContent = `budget headroom: ${fmtUSD(budgetRem)}`;
+
+  // Progress bar
+  const pct = Math.min(100, (position.tao / GOAL) * 100);
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = fmt(pct,2) + '%';
+  document.getElementById('ownedLabel').textContent  = fmt(position.tao,4) + ' TAO';
+
+  // Pending limits: exclude already-filled ones
+  const pendingLimits = LIMIT_ORDERS.filter(l => !filled.has(l.price));
+  const pendingTao  = pendingLimits.reduce((s,l)=>s+l.qty,0);
+  const pendingCost = pendingLimits.reduce((s,l)=>s+l.total,0);
+  const pendingAvg  = pendingTao > 0 ? pendingCost/pendingTao : 0;
+  document.getElementById('kpiLimitTao').textContent = fmt(pendingTao,2);
+  document.getElementById('kpiLimitSub').textContent = `pending (${fmtUSD(pendingCost)} at ~$${fmt(pendingAvg,0)} avg)`;
+  document.getElementById('limitLabel').textContent  = fmt(pendingTao,2) + ' TAO';
+  document.getElementById('limitBadge').textContent  = `${pendingLimits.length} active · ${pendingTao} TAO · ${fmtUSD(pendingCost)}`;
+
+  // DCA projected label
+  const dcaTao = dcaBudget / p;
+  document.getElementById('dcaProjectedLabel').textContent = `~${fmt(dcaTao,1)} TAO`;
+
+  // Limit "if all fill" note (pending only)
+  const limitFillTotal = position.tao + pendingTao;
+  const limitFillCost  = position.cost + pendingCost;
+  const limitFillAvg   = limitFillTotal > 0 ? limitFillCost/limitFillTotal : 0;
+  document.getElementById('limitFillTotal').textContent    = fmt(limitFillTotal,2);
+  document.getElementById('limitFillAvg').textContent      = '$' + fmt(limitFillAvg,2);
+  document.getElementById('limitFillRemaining').textContent = fmt(Math.max(0,GOAL-limitFillTotal),2);
+
+  // Calc panel
+  const projTotal = position.tao + dcaTao;
+  const projCost  = position.cost + dcaBudget;
+  const projAvg   = projCost / projTotal;
+  document.getElementById('calcTaoPerDay').textContent  = fmt(DAILY_DCA/p, 3);
+  document.getElementById('calcDcaTotal').textContent   = fmt(dcaTao, 1);
+  document.getElementById('calcTotalTao').textContent   = fmt(projTotal, 1);
+  document.getElementById('calcAvgCost').textContent    = '$' + fmt(projAvg, 0);
+  document.getElementById('calcMaxPrice').textContent   = '$' + fmt(maxAvgRem, 0);
+  document.getElementById('calcSpent').textContent      = fmtUSD(position.cost);
+  document.getElementById('calcRemainingBudget').textContent = fmtUSD(budgetRem);
+  document.getElementById('calcRemainingTao').textContent = fmt(needed, 2);
+  document.getElementById('calcMaxPerTao').textContent  = '$' + fmt(maxAvgRem, 2);
+  const goal100ok = projTotal >= 100;
+  const avgOk     = projAvg  <= 250;
+  let statusText  = goal100ok && avgOk  ? '✅ On track' :
+                    !goal100ok && avgOk  ? '⚠ Needs boost' :
+                    goal100ok && !avgOk  ? '⚠ Avg too high' : '❌ Off track';
+  let statusColor = goal100ok && avgOk ? 'var(--green)' :
+                    (!goal100ok || !avgOk) && projAvg > 250 ? 'var(--red)' : 'var(--yellow)';
+  document.getElementById('calcGoalStatus').textContent  = statusText;
+  document.getElementById('calcGoalStatus').style.color  = statusColor;
+
+  // Budget bars
+  const total = 25000;
+  document.getElementById('budgetValInvested').textContent = fmtUSD(position.cost);
+  document.getElementById('budgetBarInvested').style.width = Math.min(100,(position.cost/total*100)) + '%';
+  document.getElementById('budgetValLimits').textContent   = fmtUSD(pendingCost);
+  document.getElementById('budgetBarLimits').style.width   = Math.min(100,(pendingCost/total*100)) + '%';
+  document.getElementById('budgetValDca').textContent      = fmtUSD(dcaBudget);
+  document.getElementById('budgetBarDca').style.width      = Math.min(100,(dcaBudget/total*100)) + '%';
+  const totalCommitted = position.cost + pendingCost + dcaBudget;
+  document.getElementById('budgetTotalCommitted').textContent = fmtUSD(totalCommitted);
+  const buffer = 25000 - totalCommitted;
+  document.getElementById('budgetBuffer').textContent = fmtUSD(buffer);
+  document.getElementById('budgetBuffer').style.color = buffer >= 0 ? 'var(--yellow)' : 'var(--red)';
+
+  // Price context avg label
+  document.getElementById('priceContextAvg').textContent = `Your avg: $${fmt(position.avgCost,2)}`;
+
+  // Alert banner
+  let alertText = '';
+  if (p > 285) alertText = `🚨 Price above $285. Bull run protocol active — consider pausing DCA. Max $${fmt(maxAvgRem,0)} avg on remaining ${fmt(needed,2)} TAO.`;
+  else if (p > 250) alertText = `⚠ Price above $250. Buying here raises your avg. You have $${fmt(maxAvgRem,0)}/TAO headroom on remaining ${fmt(needed,2)} TAO.`;
+  else if (p > 200) alertText = `Price $200–$250. DCA buying ${fmt(DAILY_DCA/p,3)} TAO/day. $190 limit is $${fmt(p-190,0)} away. Projected ${fmt(dcaTao,1)} TAO from remaining DCA.`;
+  else if (p > 160) alertText = `Price approaching limit orders. $175 and $160 limits within range — watch for fills and log them!`;
+  else if (p > 140) alertText = `Multiple limit orders triggering! Price $140–$160. Log any fills in the Buy Logger. Bear scenario activating.`;
+  else alertText = `Price at/below $140. All limits may fill. Current avg: $${fmt(position.avgCost,2)}. Goal well within reach.`;
+  document.getElementById('alertText').textContent = alertText;
+
+  // Limit orders table
+  renderLimitsTable(p, position, filled);
+
+  // Scenario table
+  renderScenarios(position, days, dcaBudget, p);
+
+  // Chart
+  updateAccChart(position, days, p);
+}
+
+// ═══════════════════════════════════════════════════════
+//  LIMIT ORDERS TABLE
+// ═══════════════════════════════════════════════════════
+function renderLimitsTable(p, position, filledSet) {
+  const tbody = document.getElementById('limitsTable');
+  let cumTao = position.tao;
+  let rows = '';
+  LIMIT_ORDERS.forEach(l => {
+    const isFilled = filledSet.has(l.price);
+    cumTao += l.qty;
+    const dist = p - l.price;
+    const distStr = isFilled ? 'Filled ✓' : (dist > 0 ? `+$${fmt(dist,0)} away` : '—');
+    const tag = isFilled
+      ? `<span class="tag tag-filled"><span class="dot dot-green"></span> Filled</span>`
+      : `<span class="tag tag-active"><span class="dot dot-yellow"></span> Pending</span>`;
+    rows += `<tr>
+      <td><strong>$${l.price}</strong></td>
+      <td>${l.qty} TAO</td>
+      <td>${fmtUSD(l.total)}</td>
+      <td style="color:var(--tao)">${fmt(cumTao,2)}</td>
+      <td>${tag}</td>
+      <td style="color:${isFilled?'var(--green)':'var(--muted)'}">${distStr}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = rows;
+}
+
+// ═══════════════════════════════════════════════════════
+//  SCENARIO TABLE (dynamic, based on live position)
+// ═══════════════════════════════════════════════════════
+function renderScenarios(position, days, dcaBudget, currentP) {
+  const scenarios = [
+    { name: '🐻 Deep Bear', color: 'var(--red)',    priceRange: '$140–$170', limitsLabel: 'All pending fill', limitsTao: 0, limitsAmt: 0, dcaPrice: 150, dcaStyle: 'good' },
+    { name: '🐨 Mild Bear', color: 'var(--yellow)', priceRange: '$160–$200', limitsLabel: '3 of remaining', limitsTao: 0, limitsAmt: 0, dcaPrice: 180, dcaStyle: 'good' },
+    { name: '➡️ Base',      color: 'var(--blue)',   priceRange: '$190–$220', limitsLabel: '1–2 remaining',   limitsTao: 0, limitsAmt: 0, dcaPrice: 200, dcaStyle: 'warn' },
+    { name: '🐂 Mild Bull', color: 'var(--green)',  priceRange: '$220–$270', limitsLabel: 'None fill',       limitsTao: 0, limitsAmt: 0, dcaPrice: 250, dcaStyle: 'warn' },
+    { name: '🚀 Bull Run',  color: 'var(--purple)', priceRange: '$280–$300', limitsLabel: 'None fill',       limitsTao: 0, limitsAmt: 0, dcaPrice: 295, dcaStyle: 'bad'  },
+  ];
+  // Pending limits
+  const pendingLimits = LIMIT_ORDERS.filter(l => !filledLimitPrices().has(l.price));
+  const pendingTao   = pendingLimits.reduce((s,l)=>s+l.qty,0);
+  const pendingCost  = pendingLimits.reduce((s,l)=>s+l.total,0);
+
+  scenarios[0].limitsTao = pendingTao;             scenarios[0].limitsAmt = pendingCost;
+  scenarios[1].limitsTao = Math.round(pendingTao*0.6); scenarios[1].limitsAmt = Math.round(pendingCost*0.6);
+  scenarios[2].limitsTao = Math.round(pendingTao*0.2); scenarios[2].limitsAmt = Math.round(pendingCost*0.2);
+  scenarios[3].limitsTao = 0; scenarios[4].limitsTao = 0;
+
+  let rows = '';
+  const summary = [];
+  scenarios.forEach(s => {
+    const dcaTao   = dcaBudget / s.dcaPrice;
+    const totalTao = position.tao + s.limitsTao + dcaTao;
+    const totalCost= position.cost + s.limitsAmt + dcaBudget;
+    const avgCost  = totalCost / totalTao;
+    const hit100   = totalTao >= 100;
+    const avgOk    = avgCost <= 250;
+    summary.push({ name: s.name, total: totalTao, avg: avgCost });
+    rows += `<tr class="scenario-row">
+      <td><strong style="color:${s.color}">${s.name}</strong></td>
+      <td>${s.priceRange}</td>
+      <td style="color:${s.limitsTao>0?'var(--green)':'var(--muted)'}">${s.limitsLabel} (+${s.limitsTao} TAO)</td>
+      <td>${fmt(dcaTao,1)} (at $${s.dcaPrice})</td>
+      <td style="color:${hit100?'var(--tao)':'var(--red)'}"><strong>${fmt(totalTao,1)}${totalTao>100?'*':''}</strong></td>
+      <td class="${avgOk?'good':'bad'}"><strong>$${fmt(avgCost,0)}</strong></td>
+      <td class="${avgOk?'good':'bad'}">${avgOk?'✓ Yes':'✗ No'}</td>
+      <td class="${hit100?'good':'bad'}">${hit100?'✓ Yes':'✗ No, need '+(fmt(Math.max(0,100-totalTao),1))+' more'}</td>
+      <td style="color:var(--muted);font-size:11px">${avgOk&&hit100?'On track.':!hit100?'Needs extra buys.':avgCost>250?'Avg too high.':''}</td>
+    </tr>`;
+  });
+  document.getElementById('scenarioBody').innerHTML = rows;
+  // Update sidebar summary
+  document.getElementById('scenBear').textContent = `${fmt(summary[0].total,1)} TAO by Dec 31 ($${fmt(summary[0].avg,0)} avg)`;
+  document.getElementById('scenBase').textContent = `${fmt(summary[2].total,1)} TAO by Dec 31 ($${fmt(summary[2].avg,0)} avg)`;
+  document.getElementById('scenBull').textContent = `${fmt(summary[4].total,1)} TAO by Dec 31 ($${fmt(summary[4].avg,0)} avg)`;
+  document.getElementById('scenDca').textContent  = `${fmt(position.tao + dcaBudget/currentP,1)} TAO (no limits)`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  ACCUMULATION CHART
+// ═══════════════════════════════════════════════════════
+function buildChartData(position, days, price) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const months = [];
+  const cur = new Date(today);
+  while (cur <= END_DATE) {
+    months.push(cur.toLocaleDateString('en-US',{month:'short',year:'2-digit'}));
+    cur.setMonth(cur.getMonth()+1);
+  }
+
+  function buildLine(dcaPrice, limitBoost, limitMonth) {
+    let tao = position.tao;
+    const data = [parseFloat(tao.toFixed(2))];
+    let d = new Date(today);
+    for (let m = 0; m < months.length-1; m++) {
+      const next = new Date(d); next.setMonth(next.getMonth()+1);
+      const daysInSpan = Math.round((next - d)/86400000);
+      if (m === limitMonth) tao = Math.min(tao + limitBoost, 200);
+      tao = Math.min(tao + (30/dcaPrice)*daysInSpan, 200);
+      data.push(parseFloat(tao.toFixed(2)));
+      d = next;
+    }
+    return data;
+  }
+
+  return {
+    labels: months,
+    bear:   buildLine(150, LIMIT_ORDERS.filter(l=>!filledLimitPrices().has(l.price)).reduce((s,l)=>s+l.qty,0), 0),
+    base:   buildLine(200, LIMIT_ORDERS.filter(l=>!filledLimitPrices().has(l.price) && l.price<=190).reduce((s,l)=>s+l.qty,0), 1),
+    bull:   buildLine(270, 0, -1),
+    dcaOnly:buildLine(price, 0, -1),
+  };
+}
+
+function initAccChart(position, days, price) {
+  const ctx = document.getElementById('accChart').getContext('2d');
+  const d = buildChartData(position, days, price);
+  accChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: d.labels,
+      datasets: [
+        { label:'Bear ($150)', data:d.bear,    borderColor:'#f85149', tension:.3, fill:false, pointRadius:2 },
+        { label:'Base ($200)', data:d.base,    borderColor:'#d29922', tension:.3, fill:false, pointRadius:2 },
+        { label:'Bull ($270)', data:d.bull,    borderColor:'#58a6ff', tension:.3, fill:false, pointRadius:2 },
+        { label:'DCA Only',    data:d.dcaOnly, borderColor:'#6ee7b7', borderDash:[5,3], tension:.3, fill:false, pointRadius:2 },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{ labels:{ color:'#8b949e', boxWidth:12, font:{size:11} } },
+        tooltip:{ mode:'index', intersect:false },
+      },
+      scales: {
+        x:{ ticks:{color:'#8b949e',font:{size:10}}, grid:{color:'#21262d'} },
+        y:{ ticks:{color:'#8b949e',font:{size:10}}, grid:{color:'#21262d'}, min:20, max:130 }
+      }
+    },
+    plugins:[{
+      id:'goalLine',
+      afterDraw(chart) {
+        const {ctx,chartArea,scales} = chart;
+        const y = scales.y.getPixelForValue(100);
+        if (y < chartArea.top || y > chartArea.bottom) return;
+        ctx.save(); ctx.setLineDash([6,3]);
+        ctx.strokeStyle='rgba(110,231,183,0.5)'; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.moveTo(chartArea.left,y); ctx.lineTo(chartArea.right,y); ctx.stroke();
+        ctx.setLineDash([]); ctx.fillStyle='rgba(110,231,183,0.8)'; ctx.font='10px sans-serif';
+        ctx.fillText('100 TAO Goal', chartArea.right-80, y-4); ctx.restore();
+      }
+    }]
+  });
+}
+
+function updateAccChart(position, days, price) {
+  if (!accChart) return;
+  const d = buildChartData(position, days, price);
+  accChart.data.labels = d.labels;
+  accChart.data.datasets[0].data = d.bear;
+  accChart.data.datasets[1].data = d.base;
+  accChart.data.datasets[2].data = d.bull;
+  accChart.data.datasets[3].data = d.dcaOnly;
+  accChart.data.datasets[3].label = `DCA Only ($${price})`;
+  accChart.update('none');
+}
+
+// ═══════════════════════════════════════════════════════
+//  PRICE CONTEXT CHART (static)
+// ═══════════════════════════════════════════════════════
+function initPriceChart() {
+  const ctx = document.getElementById('priceChart').getContext('2d');
+  const labels = ['Jan 1','Jan 15','Feb 1','Feb 6','Feb 20','Mar 1','Mar 12'];
+  const prices = [219.63, 245, 185, 143.10, 170, 195, 205];
+  new Chart(ctx, {
+    type:'line',
+    data:{ labels, datasets:[{ label:'TAO/USD', data:prices, borderColor:'#6ee7b7', backgroundColor:'rgba(110,231,183,0.05)', tension:.4, fill:true, pointRadius:[3,3,3,6,3,3,6], pointBackgroundColor:prices.map((_,i)=>i===3?'#f85149':i===6?'#6ee7b7':'#8b949e') }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>`$${c.raw.toFixed(2)}`}} },
+      scales:{
+        x:{ticks:{color:'#8b949e',font:{size:10}},grid:{color:'#21262d'}},
+        y:{ticks:{color:'#8b949e',font:{size:10},callback:v=>'$'+v},grid:{color:'#21262d'},min:100,max:320}
+      }
+    },
+    plugins:[{
+      id:'priceLines',
+      afterDraw(chart) {
+        const {ctx,chartArea,scales} = chart;
+        const pos = computePosition();
+        const lines = [
+          {val:pos.avgCost, color:'rgba(210,153,34,0.7)', label:`Avg $${fmt(pos.avgCost,0)}`},
+          {val:190, color:'rgba(210,153,34,0.4)', label:'Limit $190'},
+          {val:175, color:'rgba(210,153,34,0.35)',label:'Limit $175'},
+          {val:250, color:'rgba(63,185,80,0.4)',  label:'Target $250'},
+          {val:300, color:'rgba(248,81,73,0.4)',  label:'Ceiling $300'},
+        ];
+        ctx.save(); ctx.setLineDash([4,3]); ctx.lineWidth=1; ctx.font='9px sans-serif';
+        lines.forEach(l=>{
+          const y=scales.y.getPixelForValue(l.val);
+          if(y<chartArea.top||y>chartArea.bottom)return;
+          ctx.strokeStyle=l.color; ctx.fillStyle=l.color;
+          ctx.beginPath(); ctx.moveTo(chartArea.left,y); ctx.lineTo(chartArea.right,y); ctx.stroke();
+          ctx.fillText(l.label,chartArea.left+4,y-3);
+        });
+        ctx.setLineDash([]); ctx.restore();
+      }
+    }]
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  FULL REFRESH (after log changes)
+// ═══════════════════════════════════════════════════════
+function refreshAll() {
+  const buys    = loadBuys();
+  const position = computePosition();
+  refreshSummary(buys, position);
+  renderHistory(buys, position);
+  recalc();
+}
+
+// ═══════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  // Set default date to today
+  document.getElementById('buyDate').value = todayStr();
+  document.getElementById('buyCost').value = '30.00'; // DCA default
+  document.getElementById('buyFee').value  = '0.55';  // Coinbase One avg
+
+  // Wire price input
+  document.getElementById('priceInput').addEventListener('input', recalc);
+
+  // First run
+  const position = computePosition();
+  const days     = daysLeft();
+  const price    = 205;
+
+  refreshAll();
+  initAccChart(position, days, price);
+  initPriceChart();
+});
+</script>
+</body>
+</html>

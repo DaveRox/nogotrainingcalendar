@@ -1,0 +1,20 @@
+[
+  {
+    "title": "Quarterly Compliance Training",
+    "start": "2026-09-15",
+    "end": "2026-09-15",
+    "description": "Mandatory ethics and regulatory update session"
+  },
+  {
+    "title": "New Agent Onboarding",
+    "start": "2026-09-20T10:00:00",
+    "end": "2026-09-20T12:00:00",
+    "description": "Week 1 orientation for new agents"
+  },
+  {
+    "title": "Advanced Estate Planning Seminar",
+    "start": "2026-09-25",
+    "end": "2026-09-26",
+    "description": "2-day workshop for experienced agents"
+  }
+]

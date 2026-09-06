@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <title>NYL New Orleans Training Calendar</title>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
+    <style>
+        :root { --nyl-navy: #0a2e5a; --nyl-gold: #d4af37 }
+        body { font-family: 'Segoe UI', sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px }
+        header { background: var(--nyl-navy); color: white; padding: 15px; border-radius: 5px; display: flex; align-items: center }
+        .logo { height: 50px; margin-right: 15px }
+        .fc { margin-top: 20px }
+        .fc-daygrid-event { background-color: var(--nyl-gold); border-color: var(--nyl-gold) }
+        footer { margin-top: 30px; color: #666; font-size: 0.9em }
+    </style>
+</head>
+<body>
+    <header>
+        <img src='https://via.placeholder.com/150x50/0a2e5a/ffffff?text=NYL+Logo' class="logo" alt="NYL New Orleans">
+        <h1>New Orleans General Office Training Calendar</h1>
+    </header>
+
+    <div id='calendar'></div>
+
+    <footer>
+        <p>Training inquiries: orreeves@newyorklife.com<br>
+        Office: 639 Loyola Ave #1900, New Orleans LA 70113</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarEl = document.getElementById('calendar');
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                events: [
+                    {
+                        title: 'Quarterly Compliance Training',
+                        start: '2026-09-15',
+                        end: '2026-09-15',
+                        description: 'Mandatory ethics and regulatory update session'
+                    },
+                    {
+                        title: 'New Agent Onboarding',
+                        start: '2026-09-20T10:00:00',
+                        end: '2026-09-20T12:00:00',
+                        description: 'Week 1 orientation for new agents'
+                    },
+                    {
+                        title: 'Advanced Estate Planning Seminar',
+                        start: '2026-09-25',
+                        end: '2026-09-26',
+                        description: '2-day workshop for experienced agents'
+                    }
+                ],
+                eventContent: function(info) {
+                    return {
+                        html: `<b>${info.event.title}</b><div style='font-size: 0.8em; margin-top: 2px'>${info.event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>`
+                    }
+                }
+            });
+            calendar.render();
+        });
+    </script>
+</body>
+</html>
