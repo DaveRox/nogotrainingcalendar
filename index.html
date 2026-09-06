@@ -2,16 +2,68 @@
 <html>
 <head>
     <meta charset='utf-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>NYL New Orleans Training Calendar</title>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js' integrity='sha384-B1OFx8Gy9GjPu8UbUyXbGQpzll9ubAUQ9agInFJ8NnD7nYG1u/CLR+Sqr5yifl4q' crossorigin='anonymous'></script>
     <style>
         :root { --nyl-navy: #0a2e5a; --nyl-gold: #d4af37 }
-        body { font-family: 'Segoe UI', sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px }
-        header { background: var(--nyl-navy); color: white; padding: 15px; border-radius: 5px; display: flex; align-items: center }
-        .logo { height: 50px; margin-right: 15px }
-        .fc { margin-top: 20px }
-        .fc-daygrid-event { background-color: var(--nyl-gold); border-color: var(--nyl-gold) }
-        footer { margin-top: 30px; color: #666; font-size: 0.9em }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            max-width: 100%; 
+            margin: 0 auto; 
+            padding: 15px;
+            box-sizing: border-box;
+        }
+        header { 
+            background: var(--nyl-navy); 
+            color: white; 
+            padding: 12px; 
+            border-radius: 5px; 
+            display: flex; 
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .logo { 
+            height: 40px; 
+            margin-bottom: 10px;
+            max-width: 100%;
+        }
+        h1 {
+            font-size: 1.3em;
+            margin: 0;
+        }
+        .fc {
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+        .fc-toolbar-title {
+            font-size: 1.1em !important;
+        }
+        .fc-daygrid-event {
+            background-color: var(--nyl-gold); 
+            border-color: var(--nyl-gold);
+            padding: 2px 4px !important;
+        }
+        footer {
+            margin-top: 20px; 
+            color: #666; 
+            font-size: 0.85em;
+            line-height: 1.4;
+        }
+        /* Mobile-specific overrides */
+        @media (max-width: 600px) {
+            .fc-toolbar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .fc-button-group {
+                margin-top: 8px;
+            }
+            .fc-daygrid-event {
+                white-space: normal !important;
+                overflow: visible !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -38,9 +90,11 @@
                         headerToolbar: {
                             left: 'prev,next today',
                             center: 'title',
-                            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                            right: 'dayGridMonth,timeGridWeek,listWeek'
                         },
                         events: events,
+                        handleWindowResize: true,
+                        windowResizeDelay: 100,
                         eventContent: function(info) {
                             return {
                                 html: `<b>${info.event.title}</b><div style='font-size: 0.8em; margin-top: 2px'>${info.event.start ? info.event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</div>`
